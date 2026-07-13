@@ -1,0 +1,45 @@
+from flask import Flask, render_template, request
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
+import numpy as np
+import os
+
+app = Flask(__name__)
+
+model = load_model("plant_model.h5")
+
+classes = [
+    "Healthy",
+    "Tomato Early Blight",
+    "Tomato Late Blight",
+    "Potato Early Blight",
+    "Potato Late Blight"
+]
+
+@app.route('/')
+def home():
+    return render_template("index.html")
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    if 'file' not in request.files:
+        return "No file uploaded"
+
+    file = request.files['file']
+    path = os.path.join("static", file.filename)
+    file.save(path)
+
+    img = image.load_img(path, target_size=(224,224))
+    img = image.img_to_array(img)
+    img = np.expand_dims(img, axis=0)
+    img = img / 255.0
+
+    prediction = model.predict(img)
+    result = classes[np.argmax(prediction)]
+
+    return render_template("index.html",
+                           prediction=result,
+                           image_file=path)
+
+if __name__ == "__main__":
+    app.run(debug=True)
